@@ -25,7 +25,7 @@
 // This line is for the automated tests with node.js
 if (typeof(exports) != 'undefined') { exports.erase = erase }
 
-function erase(paths, erasePath, eraseRadius) {
+export default function erase(paths, erasePath, eraseRadius) {
 	//var date = new Date();
 	//var time1 = date.getMilliseconds();
 	eraseRadius = eraseRadius || 20;
@@ -41,9 +41,11 @@ function erase(paths, erasePath, eraseRadius) {
 	*/
 
 	var newPaths = [];
+	let newIndices = []
+	let indices = [...paths.keys()] //array [0,...,n-1]
 
 	// pointErase is for use when erasePath is of length 1.  In this case the erasing element is a circle, not a capsule.
-	var pointErase = function(path) {
+	var pointErase = function(path, pIdx) {
 		var eX = erasePath[0][0];
 		var eY = erasePath[0][1];
 
@@ -54,6 +56,7 @@ function erase(paths, erasePath, eraseRadius) {
 		if (path.length===1) {
 			if (!withinCircle(path[0][0], path[0][1], eX, eY, eraseRadius)) {
 				newPaths.push(path);
+				newIndices.push(pIdx)
 				return;
 			}
 		}
@@ -93,6 +96,7 @@ function erase(paths, erasePath, eraseRadius) {
 					newPath = path.slice(last, i+1);
 					newPath.push(x);
 					newPaths.push(newPath);
+					newIndices.push(pIdx)
 				}
 				i++;
 				last = i;
@@ -113,7 +117,10 @@ function erase(paths, erasePath, eraseRadius) {
 					}
 
 					// we only want paths with length > 1
-					if (newPath.length > 1) newPaths.push(newPath);
+					if (newPath.length > 1) {
+						newPaths.push(newPath);
+						newIndices.push(pIdx)
+					}
 
 					// we will put the second intersection point into the current position
 					// of our path, but only if it is not identical to the next point in
@@ -133,13 +140,14 @@ function erase(paths, erasePath, eraseRadius) {
 			newPath = path.slice(last, path.length);
 			if (newPath) {
 				newPaths.push(newPath);
+				newIndices.push(pIdx)
 			}
 		}
 	} // end pointErase
 
 	// If the erasePath has a length greater than one, then each successive pair of coordinate pairs can be used to form a capsule-
 	//   shape along with the eraseRadius.  Each capsule in the erasePath can act independently of each other.
-	var capsuleErase = function(path, i) {
+	var capsuleErase = function(path, i, pIdx) {
 		var e0 = erasePath[i];
 		var e1 = erasePath[i+1];
 
@@ -151,6 +159,7 @@ function erase(paths, erasePath, eraseRadius) {
 			var p0_locationIndex = withinCapsule(path[0][0], path[0][1], e0[0], e0[1], e1[0], e1[1], eraseRadius);
 			if (p0_locationIndex.indexOf(1) === -1) {
 				newPaths.push(path);
+				newIndices.push(pIdx)
 				return;
 			}
 		}
@@ -189,6 +198,7 @@ function erase(paths, erasePath, eraseRadius) {
 					newPath = path.slice(last, i+1);
 					newPath.push(x);
 					newPaths.push(newPath);
+					newIndices.push(pIdx)
 					i++;
 					last = i;
 				}
@@ -212,7 +222,10 @@ function erase(paths, erasePath, eraseRadius) {
 					}
 					
 					// we only want paths with length > 1
-					if (newPath.length > 1) newPaths.push(newPath);
+					if (newPath.length > 1) {
+						newPaths.push(newPath);
+						newIndices.push(pIdx)
+					}
 					
 					
 					// we will put the second intersection point into the current position
@@ -234,6 +247,7 @@ function erase(paths, erasePath, eraseRadius) {
 			newPath = path.slice(last, path.length);
 			if (newPath) {
 				newPaths.push(newPath);
+				newIndices.push(pIdx)
 			}
 		}
 	} // end capsuleErase
@@ -248,17 +262,20 @@ function erase(paths, erasePath, eraseRadius) {
 	erasePath = cleanPath(erasePath);
 	if (erasePath.length === 1) {
 		for (var p=0; p<paths.length; p++) {
-			pointErase(paths[p]);
+			pointErase(paths[p], indices[p]);
 		}
 		paths = newPaths;
+		indices = newIndices
 	}
 	else {
 		for (var e=0; e<(erasePath.length-1); e++) {
 			for (var p=0; p<(paths.length); p++) {
-				capsuleErase(paths[p], e);
+				capsuleErase(paths[p], e, indices[p]);
 			}
 			paths = newPaths;
+			indices = newIndices
 			newPaths = [];
+			newIndices = []
 		}
 	} // end main
 
@@ -282,7 +299,7 @@ function erase(paths, erasePath, eraseRadius) {
 	//var deltaT = time2 - time1;
 	//console.log(deltaT);
 	
-	return paths;
+	return [paths, indices];
 } // end erase
 
 /* Helper functions:
@@ -359,7 +376,7 @@ function logPath (path, displaySwitch) {
 *  Takes a list of paths, and will write them to the console.
 */
 function logPaths (paths) {
-	log = "";
+	let log = "";
 	log += "[";
 	for (var i=0; i<(paths.length-1); i++) {
 		log += logPath(paths[i], 0);
@@ -382,7 +399,7 @@ function cleanPath (path) {
 		cleaned = path;
 	}
 	else {
-		pClean = 0;
+		let pClean = 0;
 		while (pClean<(path.length-1)) {
 			if (path[pClean][0] !== path[pClean+1][0] || path[pClean][1] !== path[pClean+1][1]) {
 				cleaned.push(path[pClean]);
