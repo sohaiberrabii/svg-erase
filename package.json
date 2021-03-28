@@ -1,5 +1,5 @@
 {
-  "name": "svg-erase",
+  "name": "@serrabii/svg-erase",
   "version": "1.0.0",
   "main": "erase.js"
 }
